@@ -10,17 +10,16 @@ public class AuthorizationService {
     public AuthorizationService(LedgerRepository ledger) { this.ledger = ledger; }
 
     public AuthResult authorize(Order order) {
-        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-            AuthResult r = tryAuthorize(order);      // each attempt opens and commits its own transaction
-            if (r.ok()) return r;
-            backoff(attempt);                        // no DB connection held while waiting
-        }
-        return AuthResult.declined("retries exhausted");
+        return authorizeWithRetry(order, 1);
     }
 
     @Transactional
-    AuthResult tryAuthorize(Order order) {
-        return ledger.reserveFunds(order.account(), order.amount());
+    AuthResult authorizeWithRetry(Order order, int attempt) {
+        AuthResult r = ledger.reserveFunds(order.account(), order.amount());
+        if (r.ok() || attempt >= MAX_ATTEMPTS) return r;
+        backoff(attempt);
+        // perf refactor: retry recursively; the DB connection/transaction is still held here
+        return authorizeWithRetry(order, attempt + 1);
     }
 
     private void backoff(int attempt) {
