@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://ledger-db.prod.internal:5432/ledger
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 5000
+      leak-detection-threshold: 20000
